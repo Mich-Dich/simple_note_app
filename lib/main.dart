@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 void main() {
   runApp(NoteApp());
@@ -23,7 +26,7 @@ class NoteListScreen extends StatefulWidget {
 }
 
 class _NoteListScreenState extends State<NoteListScreen> {
-  List<Map<String, String>> notes = [];
+  List<Map<String, dynamic>> notes = [];
 
   @override
   void initState() {
@@ -38,7 +41,7 @@ class _NoteListScreenState extends State<NoteListScreen> {
     if (savedNotes != null) {
       setState(() {
         notes = (json.decode(savedNotes) as List)
-            .map((note) => Map<String, String>.from(note))
+            .map((note) => Map<String, dynamic>.from(note))
             .toList();
       });
     }
@@ -94,6 +97,7 @@ class _NoteListScreenState extends State<NoteListScreen> {
         itemBuilder: (context, index) {
           return ListTile(
             title: Text(notes[index]['title']!),
+            subtitle: _getNotePreview(notes[index]['content']),
             onTap: () => _editNote(index),
           );
         },
@@ -104,10 +108,23 @@ class _NoteListScreenState extends State<NoteListScreen> {
       ),
     );
   }
+
+  Widget _getNotePreview(dynamic content) {
+    if (content is String) {
+      // For backward compatibility with old text-only notes
+      return Text(content.length > 50 ? '${content.substring(0, 50)}...' : content);
+    } else if (content is List) {
+      // For rich text notes with images
+      final delta = quill.Delta.fromJson(content);
+      final plainText = delta.map((op) => op.isInsert ? op.value : '').join();
+      return Text(plainText.length > 50 ? '${plainText.substring(0, 50)}...' : plainText);
+    }
+    return Text('');
+  }
 }
 
 class NoteEditScreen extends StatefulWidget {
-  final Map<String, String>? note;
+  final Map<String, dynamic>? note;
 
   NoteEditScreen({this.note});
 
@@ -117,20 +134,57 @@ class NoteEditScreen extends StatefulWidget {
 
 class _NoteEditScreenState extends State<NoteEditScreen> {
   late TextEditingController _titleController;
-  late TextEditingController _contentController;
+  late quill.QuillController _quillController;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.note?['title'] ?? '');
-    _contentController = TextEditingController(text: widget.note?['content'] ?? '');
+    
+    if (widget.note?['content'] != null) {
+      if (widget.note!['content'] is String) {
+        // Convert old text-only notes to rich text format
+        _quillController = quill.QuillController(
+          document: quill.Document.fromDelta(
+            quill.Delta()..insert(widget.note!['content']),
+          ),
+          selection: TextSelection.collapsed(offset: 0),
+        );
+      } else {
+        // Handle rich text notes with images
+        _quillController = quill.QuillController(
+          document: quill.Document.fromJson(widget.note!['content']),
+          selection: TextSelection.collapsed(offset: 0),
+        );
+      }
+    } else {
+      _quillController = quill.QuillController.basic();
+    }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _contentController.dispose();
+    _quillController.dispose();
     super.dispose();
+  }
+
+  Future<void> _insertImage() async {
+    final image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final bytes = await File(image.path).readAsBytes();
+      final imageBase64 = base64Encode(bytes);
+      
+      final index = _quillController.selection.baseOffset;
+      final length = _quillController.selection.extentOffset - index;
+      
+      _quillController.document.insert(
+        index,
+        {'image': imageBase64},
+        null,
+      );
+    }
   }
 
   @override
@@ -140,11 +194,15 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         title: Text(widget.note == null ? 'New Note' : 'Edit Note'),
         actions: [
           IconButton(
+            icon: Icon(Icons.image),
+            onPressed: _insertImage,
+          ),
+          IconButton(
             icon: Icon(Icons.save),
             onPressed: () {
               Navigator.pop(context, {
                 'title': _titleController.text,
-                'content': _contentController.text,
+                'content': _quillController.document.toDelta().toJson(),
               });
             },
           ),
@@ -165,17 +223,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             ),
             SizedBox(height: 16),
             Expanded(
-              child: TextField(
-                controller: _contentController,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                decoration: InputDecoration(
-                  hintText: 'Write your note here...',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  border: InputBorder.none,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                style: TextStyle(fontSize: 16),
+                child: quill.QuillEditor(
+                  controller: _quillController,
+                  scrollController: ScrollController(),
+                  scrollable: true,
+                  focusNode: FocusNode(),
+                  autoFocus: false,
+                  readOnly: false,
+                  expands: true,
+                  padding: EdgeInsets.all(16),
+                ),
               ),
+            ),
+            quill.QuillToolbar.basic(
+              controller: _quillController,
+              showImageButton: false, // We're using our own image button
             ),
           ],
         ),
