@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
 void main() {
@@ -277,6 +278,14 @@ class NoteDetailScreen extends StatelessWidget {
 
   NoteDetailScreen({required this.note, required this.onEdit});
 
+  Future<void> _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await canLaunchUrl(uri)) {
+      throw Exception('Could not launch $url');
+    }
+    await launchUrl(uri);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -293,9 +302,12 @@ class NoteDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Markdown(
           data: note['content']!,
-          // Custom imageBuilder to handle local file images
+          onTapLink: (text, href, title) {
+            if (href != null) {
+              _launchUrl(href);
+            }
+          },
           imageBuilder: (uri, title, alt) {
-            // The [uri] here is parsed from your markdown. We assume it's a local file.
             return Image.file(File(uri.path));
           },
           styleSheet: MarkdownStyleSheet(
