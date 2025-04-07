@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'dart:io';
 
 void main() {
   runApp(NoteApp());
@@ -65,22 +68,30 @@ class _NoteListScreenState extends State<NoteListScreen> {
     }
   }
 
-  void _editNote(int index) async {
-    final updatedNote = await Navigator.push(
+  // Tapping on a note navigates to the NoteDetailScreen
+  void _viewNote(int index) {
+    Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NoteEditScreen(
+        builder: (context) => NoteDetailScreen(
           note: notes[index],
+          onEdit: () async {
+            final updatedNote = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NoteEditScreen(note: notes[index]),
+              ),
+            );
+            if (updatedNote != null && updatedNote['title']!.isNotEmpty) {
+              setState(() {
+                notes[index] = updatedNote;
+                _saveNotes();
+              });
+            }
+          },
         ),
       ),
     );
-
-    if (updatedNote != null && updatedNote['title']!.isNotEmpty) {
-      setState(() {
-        notes[index] = updatedNote;
-        _saveNotes();
-      });
-    }
   }
 
   @override
@@ -94,7 +105,7 @@ class _NoteListScreenState extends State<NoteListScreen> {
         itemBuilder: (context, index) {
           return ListTile(
             title: Text(notes[index]['title']!),
-            onTap: () => _editNote(index),
+            onTap: () => _viewNote(index),
           );
         },
       ),
@@ -118,12 +129,15 @@ class NoteEditScreen extends StatefulWidget {
 class _NoteEditScreenState extends State<NoteEditScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.note?['title'] ?? '');
-    _contentController = TextEditingController(text: widget.note?['content'] ?? '');
+    _titleController =
+        TextEditingController(text: widget.note?['title'] ?? '');
+    _contentController =
+        TextEditingController(text: widget.note?['content'] ?? '');
   }
 
   @override
@@ -133,12 +147,39 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     super.dispose();
   }
 
+  // Function to pick an image and insert a markdown image link
+  Future<void> _insertImage() async {
+    final pickedFile =
+        await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final imagePath = pickedFile.path;
+      // Markdown image syntax. The newlines ensure it appears on its own line.
+      final markdownImage = "\n![]($imagePath)\n";
+      
+      // Insert at the current cursor position
+      final text = _contentController.text;
+      final selection = _contentController.selection;
+      final newText = text.replaceRange(
+        selection.start, selection.end, markdownImage);
+      
+      setState(() {
+        _contentController.text = newText;
+        _contentController.selection = TextSelection.collapsed(
+            offset: selection.start + markdownImage.length);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.note == null ? 'New Note' : 'Edit Note'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.image),
+            onPressed: _insertImage,
+          ),
           IconButton(
             icon: Icon(Icons.save),
             onPressed: () {
@@ -178,6 +219,42 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class NoteDetailScreen extends StatelessWidget {
+  final Map<String, String> note;
+  final VoidCallback onEdit;
+
+  NoteDetailScreen({required this.note, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(note['title']!),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.edit),
+            onPressed: onEdit,
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Markdown(
+          data: note['content']!,
+          // Custom imageBuilder to handle local file images
+          imageBuilder: (uri, title, alt) {
+            // The [uri] here is parsed from your markdown. We assume it's a local file.
+            return Image.file(File(uri.path));
+          },
+          styleSheet: MarkdownStyleSheet(
+            p: TextStyle(fontSize: 16),
+          ),
         ),
       ),
     );
