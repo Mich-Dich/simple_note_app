@@ -94,20 +94,66 @@ class _NoteListScreenState extends State<NoteListScreen> {
     );
   }
 
+  void _deleteNote(int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Note'),
+          content: Text(
+              'Are you sure you want to delete the note: "${notes[index]['title']}"?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cancel deletion
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  notes.removeAt(index);
+                  _saveNotes();
+                });
+                Navigator.of(context).pop(); // Dismiss dialog
+              },
+              child: Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Notes'),
       ),
-      body: ListView.builder(
-        itemCount: notes.length,
-        itemBuilder: (context, index) {
-          return ListTile(
-            title: Text(notes[index]['title']!),
-            onTap: () => _viewNote(index),
-          );
+      body: ReorderableListView(
+        onReorder: (int oldIndex, int newIndex) {
+          if (newIndex > oldIndex) {
+            newIndex--;
+          }
+          setState(() {
+            final note = notes.removeAt(oldIndex);
+            notes.insert(newIndex, note);
+            _saveNotes();
+          });
         },
+        children: List.generate(notes.length, (index) {
+          final note = notes[index];
+          return ListTile(
+            key: Key('${note['title']}_$index'),
+            title: Text(note['title']!),
+            onTap: () => _viewNote(index),
+            trailing: IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () => _deleteNote(index),
+            ),
+          );
+        }),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNote,
