@@ -12,32 +12,38 @@ import 'package:flutter_highlight/themes/vs2015.dart';
 
 class MyHighLightBuilder extends MarkdownElementBuilder {
   @override
-  Widget? visitElementAfterWithContext(
-    BuildContext context,
-    md.Element element,
-    TextStyle? preferredStyle,
-    TextStyle? parentStyle,
-  ) {
+  Widget? visitElementAfterWithContext(BuildContext context, md.Element element, TextStyle? preferredStyle, TextStyle? parentStyle) {
     var lang = 'plaintext';
     final pattern = RegExp(r'^language-(.+)$');
-
     var className = element.attributes['class'];
-
     if (className != null) {
       var out = pattern.firstMatch(className)?.group(1);
-
-      if (out != null) {
+      if (out != null)
         lang = out;
-      }
     }
 
-    return HighlightView(
-      element.textContent.trim(),
-      language: lang,
-      theme: vs2015Theme,
-      textStyle: TextStyle(fontFamily: 'monospace', fontSize: 12),
-      tabSize: 4,
-      padding: EdgeInsets.all(10),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 0, 0, 0),
+        borderRadius: BorderRadius.circular(10.0),
+      ),
+      child: Scrollbar(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: HighlightView(
+            element.textContent.trim(),
+            language: lang,
+            theme: vs2015Theme,
+            textStyle: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+            tabSize: 4,
+            padding: EdgeInsets.all(10),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -200,11 +206,10 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: SizedBox(
-                    height: 24.0,
-                    width: 24.0,
+                    height: 19.0,
+                    width: 19.0,
                     child: Checkbox(
                       value: value,
-                      // size: const Size(10, 10), 
                       activeColor: const Color.fromARGB(255, 0, 105, 0),
                       checkColor: const Color.fromARGB(255, 0, 0, 0),
                       visualDensity: VisualDensity.compact,
