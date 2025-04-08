@@ -71,30 +71,41 @@ class _NoteListScreenState extends State<NoteListScreen> {
   }
 
   // Tapping on a note navigates to the NoteDetailScreen
-  void _viewNote(int index) {
-    Navigator.push(
+void _viewNote(int index) {
+  void handleEdit() async {
+    final updatedNote = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NoteDetailScreen(
-          note: notes[index],
-          onEdit: () async {
-            final updatedNote = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => NoteEditScreen(note: notes[index]),
-              ),
-            );
-            if (updatedNote != null && updatedNote['title']!.isNotEmpty) {
-              setState(() {
-                notes[index] = updatedNote;
-                _saveNotes();
-              });
-            }
-          },
-        ),
+        builder: (context) => NoteEditScreen(note: notes[index]),
       ),
     );
+    if (updatedNote != null && updatedNote['title']!.isNotEmpty) {
+      setState(() {
+        notes[index] = updatedNote;
+        _saveNotes();
+      });
+      // Replace current screen to refresh
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (ctx) => NoteDetailScreen(
+            note: notes[index],
+            onEdit: handleEdit, // Reuse the same handler
+          )
+        ),
+      );
+    }
   }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => NoteDetailScreen(
+        note: notes[index],
+        onEdit: handleEdit,
+      ),
+    ),
+  );
+}
 
   void _deleteNote(int index) {
     showDialog(
@@ -159,6 +170,8 @@ class _NoteListScreenState extends State<NoteListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNote,
+        foregroundColor: const Color.fromARGB(255, 0, 0, 0),
+        backgroundColor: const Color.fromARGB(255, 0, 100, 0),
         child: Icon(Icons.add),
       ),
     );
@@ -201,7 +214,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       final imagePath = pickedFile.path;
-      final markdownImage = "\n![]($imagePath)\n";
+      final markdownImage = "![]($imagePath)";
       final text = _contentController.text;
       final selection = _contentController.selection;
       final newText = text.replaceRange(
@@ -216,7 +229,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   }
 
   void _insertTodoList() {
-    final todoTemplate = "\n- [ ] New Task\n";
+    final todoTemplate = "- [ ] ";
     final text = _contentController.text;
     final selection = _contentController.selection;
     final newText = text.replaceRange(
@@ -289,14 +302,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 }
 
 
-
-
-
-
-
-
-
-
 class NoteDetailScreen extends StatefulWidget {
   final Map<String, String> note;
   final VoidCallback onEdit;
@@ -349,8 +354,21 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final MarkdownStyleSheet customStyle = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+    final MarkdownStyleSheet baseStyle = MarkdownStyleSheet.fromTheme(Theme.of(context));
+    final MarkdownStyleSheet customStyle = baseStyle.copyWith(
+      h1: baseStyle.h1?.copyWith(color: const Color.fromARGB(255, 0, 255, 0)),
+      h2: baseStyle.h2?.copyWith(color: const Color.fromARGB(255, 0, 170, 0)),
+      h3: baseStyle.h3?.copyWith(color: const Color.fromARGB(255, 0, 150, 0)),
+      h4: baseStyle.h4?.copyWith(color: const Color.fromARGB(255, 0, 110, 0)),
+      h5: baseStyle.h5?.copyWith(color: const Color.fromARGB(255, 0, 100, 0)),
+      h6: baseStyle.h6?.copyWith(color: const Color.fromARGB(255, 0, 90, 0)),
+      a: TextStyle(color: const Color.fromARGB(255, 0, 97, 0)),
       p: const TextStyle(fontSize: 16),
+      blockquoteDecoration: BoxDecoration(
+        color: const Color.fromARGB(255, 0, 45, 0),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color.fromARGB(255, 0, 100, 0)),
+      ),
     );
 
     int checkboxCounter = 0;
@@ -376,7 +394,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(6.0),
         child: SingleChildScrollView(
           child: MarkdownBody(
             data: content,
@@ -391,15 +409,28 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
               final currentIndex = checkboxCounter;
               checkboxCounter++;
 
-              return Checkbox(
-                value: value,
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onChanged: (bool? newValue) {
-                  if (newValue != null) {
-                    _toggleCheckbox(currentIndex);
-                  }
-                },
+
+              return Padding(
+                padding: const EdgeInsets.only(top: 0.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    height: 24.0,
+                    width: 24.0,
+                    child: Checkbox(
+                      value: value,
+                      activeColor: const Color.fromARGB(255, 0, 105, 0),
+                      checkColor: const Color.fromARGB(255, 0, 0, 0),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onChanged: (bool? newValue) {
+                        if (newValue != null) {
+                          _toggleCheckbox(currentIndex);
+                        }
+                      },
+                    ),
+                  )
+                )
               );
             },
           ),
@@ -408,4 +439,3 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     );
   }
 }
-
