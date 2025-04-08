@@ -314,7 +314,7 @@ class NoteDetailScreen extends StatefulWidget {
 
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   late String content;
-  late List<int> checkboxLineIndices; // Maps rendered checkboxes to line numbers
+  late List<int> checkboxLineIndices;
 
   @override
   void initState() {
@@ -339,16 +339,15 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     final lineIndex = checkboxLineIndices[checkboxIndex];
     final line = lines[lineIndex];
 
-    if (line.contains('- [ ]')) {
+    if (line.contains('- [ ]'))
       lines[lineIndex] = line.replaceFirst('- [ ]', '- [x]');
-    } else if (line.contains('- [x]')) {
+    else if (line.contains('- [x]'))
       lines[lineIndex] = line.replaceFirst('- [x]', '- [ ]');
-    }
 
     setState(() {
       content = lines.join('\n');
       widget.note['content'] = content;
-      _updateCheckboxLineIndices(); // Refresh map
+      _updateCheckboxLineIndices();
     });
   }
 
@@ -370,7 +369,6 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         border: Border.all(color: const Color.fromARGB(255, 0, 100, 0)),
       ),
     );
-
     int checkboxCounter = 0;
 
     return Scaffold(
@@ -400,7 +398,36 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
             data: content,
             styleSheet: customStyle,
             imageBuilder: (uri, title, alt) {
-              return Image.file(File(uri.path));
+              return GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: EdgeInsets.all(10),
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width,
+                            maxHeight: MediaQuery.of(context).size.height,
+                          ),
+                          child: InteractiveViewer(
+                            panEnabled: true,
+                            minScale: 0.5,
+                            maxScale: 4.0,
+                            child: Image.file(
+                              File(uri.path),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                child: Image.file(File(uri.path)),
+              );
             },
             onTapLink: (text, href, title) {
               if (href != null) launchUrl(Uri.parse(href));
@@ -408,8 +435,6 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
             checkboxBuilder: (bool value) {
               final currentIndex = checkboxCounter;
               checkboxCounter++;
-
-
               return Padding(
                 padding: const EdgeInsets.only(top: 0.0),
                 child: Align(
