@@ -288,47 +288,81 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   }
 }
 
-class NoteDetailScreen extends StatelessWidget {
+
+
+
+
+
+
+
+
+
+class NoteDetailScreen extends StatefulWidget {
   final Map<String, String> note;
   final VoidCallback onEdit;
 
   NoteDetailScreen({required this.note, required this.onEdit});
 
-  Future<void> _launchUrl(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (!await canLaunchUrl(uri)) {
-      throw Exception('Could not launch $url');
+  @override
+  _NoteDetailScreenState createState() => _NoteDetailScreenState();
+}
+
+class _NoteDetailScreenState extends State<NoteDetailScreen> {
+  late String content;
+  late List<int> checkboxLineIndices; // Maps rendered checkboxes to line numbers
+
+  @override
+  void initState() {
+    super.initState();
+    content = widget.note['content'] ?? '';
+    _updateCheckboxLineIndices();
+  }
+
+  void _updateCheckboxLineIndices() {
+    final lines = content.split('\n');
+    checkboxLineIndices = [];
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (line.trimLeft().startsWith('- [ ]') || line.trimLeft().startsWith('- [x]')) {
+        checkboxLineIndices.add(i);
+      }
     }
-    await launchUrl(uri);
+  }
+
+  void _toggleCheckbox(int checkboxIndex) {
+    final lines = content.split('\n');
+    final lineIndex = checkboxLineIndices[checkboxIndex];
+    final line = lines[lineIndex];
+
+    if (line.contains('- [ ]')) {
+      lines[lineIndex] = line.replaceFirst('- [ ]', '- [x]');
+    } else if (line.contains('- [x]')) {
+      lines[lineIndex] = line.replaceFirst('- [x]', '- [ ]');
+    }
+
+    setState(() {
+      content = lines.join('\n');
+      widget.note['content'] = content;
+      _updateCheckboxLineIndices(); // Refresh map
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final MarkdownStyleSheet baseStyle = MarkdownStyleSheet.fromTheme(Theme.of(context));
-    final MarkdownStyleSheet customStyle = baseStyle.copyWith(
-      h1: baseStyle.h1?.copyWith(color: const Color.fromARGB(255, 0, 255, 0)),
-      h2: baseStyle.h2?.copyWith(color: const Color.fromARGB(255, 0, 170, 0)),
-      h3: baseStyle.h3?.copyWith(color: const Color.fromARGB(255, 0, 150, 0)),
-      h4: baseStyle.h4?.copyWith(color: const Color.fromARGB(255, 0, 110, 0)),
-      h5: baseStyle.h5?.copyWith(color: const Color.fromARGB(255, 0, 100, 0)),
-      h6: baseStyle.h6?.copyWith(color: const Color.fromARGB(255, 0, 90, 0)),
-      a: TextStyle(color: const Color.fromARGB(255, 0, 97, 0)),
+    final MarkdownStyleSheet customStyle = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
       p: const TextStyle(fontSize: 16),
-      blockquoteDecoration: BoxDecoration(
-        color: const Color.fromARGB(255, 0, 45, 0),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color.fromARGB(255, 0, 100, 0)),
-      ),
     );
+
+    int checkboxCounter = 0;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(note['title']!),
+        title: Text(widget.note['title'] ?? ''),
         actions: [
           IconButton(
             icon: Icon(Icons.copy),
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: note['content']!)).then((_) {
+              Clipboard.setData(ClipboardData(text: content)).then((_) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Note copied to clipboard')),
                 );
@@ -337,47 +371,41 @@ class NoteDetailScreen extends StatelessWidget {
           ),
           IconButton(
             icon: Icon(Icons.edit),
-            onPressed: onEdit,
+            onPressed: widget.onEdit,
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Markdown(
-          data: note['content']!,
-          onTapLink: (text, href, title) {
-            if (href != null) {
-              _launchUrl(href);
-            }
-          },
-          imageBuilder: (uri, title, alt) {
-            return Image.file(File(uri.path));
-          },
-          styleSheet: customStyle,
-          checkboxBuilder: (bool value) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 0.0), // tweak this as needed
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  height: 24.0,
-                  width: 24.0,
-                  child: Checkbox(
-                    value: value,
-                    visualDensity: VisualDensity.compact, // keeps it tight
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    onChanged: (bool? newValue) {
-                      if (newValue != null) {
-                        // toggleCheckbox(newValue);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            );
-          }
+        child: SingleChildScrollView(
+          child: MarkdownBody(
+            data: content,
+            styleSheet: customStyle,
+            imageBuilder: (uri, title, alt) {
+              return Image.file(File(uri.path));
+            },
+            onTapLink: (text, href, title) {
+              if (href != null) launchUrl(Uri.parse(href));
+            },
+            checkboxBuilder: (bool value) {
+              final currentIndex = checkboxCounter;
+              checkboxCounter++;
+
+              return Checkbox(
+                value: value,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (bool? newValue) {
+                  if (newValue != null) {
+                    _toggleCheckbox(currentIndex);
+                  }
+                },
+              );
+            },
+          ),
         ),
       ),
     );
   }
 }
+
