@@ -2,10 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:markdown/src/ast.dart' as md;
 import 'dart:io';
 
+import 'package:flutter_highlight/themes/vs2015.dart';
 
 
+
+class MyHighLightBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfterWithContext(
+    BuildContext context,
+    md.Element element,
+    TextStyle? preferredStyle,
+    TextStyle? parentStyle,
+  ) {
+    var lang = 'plaintext';
+    final pattern = RegExp(r'^language-(.+)$');
+
+    var className = element.attributes['class'];
+
+    if (className != null) {
+      var out = pattern.firstMatch(className)?.group(1);
+
+      if (out != null) {
+        lang = out;
+      }
+    }
+
+    return HighlightView(
+      element.textContent.trim(),
+      language: lang,
+      theme: vs2015Theme,
+      textStyle: TextStyle(fontFamily: 'monospace', fontSize: 12),
+      tabSize: 4,
+      padding: EdgeInsets.all(10),
+    );
+  }
+}
 
 
 class NoteDetailScreen extends StatefulWidget {
@@ -19,10 +54,16 @@ class NoteDetailScreen extends StatefulWidget {
 }
 
 
-
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   late String content;
   late List<int> checkboxLineIndices;
+  final cppTheme = {
+    'keyword': TextStyle(color: Color(0xFF00FF00)),     // Green
+    'built_in': TextStyle(color: Color(0xFF00CC00)),    // Slightly darker green
+    'string': TextStyle(color: Color(0xFF00AA00)),      // Darker green
+    'comment': TextStyle(color: Color(0xFF007700)),     // Dark green
+    'meta': TextStyle(color: Color(0xFF00FF00)),        // Bright green
+  };
 
   @override
   void initState() {
@@ -69,11 +110,20 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       h5: baseStyle.h5?.copyWith(color: const Color.fromARGB(255, 0, 100, 0)),
       h6: baseStyle.h6?.copyWith(color: const Color.fromARGB(255, 0, 90, 0)),
       a: TextStyle(color: const Color.fromARGB(255, 0, 97, 0)),
-      p: const TextStyle(fontSize: 16),
+      p: const TextStyle(fontSize: 14),
       blockquoteDecoration: BoxDecoration(
         color: const Color.fromARGB(255, 0, 45, 0),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color.fromARGB(255, 0, 100, 0)),
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: const Color.fromARGB(255, 0, 0, 0),  // Dark background
+        borderRadius: BorderRadius.circular(10.0),
+      ),
+      code: TextStyle(
+        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+        fontFamily: 'monospace',
+        color: const Color.fromARGB(132, 129, 129, 129),  // Dark background
       ),
     );
     int checkboxCounter = 0;
@@ -104,6 +154,9 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           child: MarkdownBody(
             data: content,
             styleSheet: customStyle,
+            builders: {
+              'code': MyHighLightBuilder()
+            },
             imageBuilder: (uri, title, alt) {
               return GestureDetector(
                 onTap: () {
@@ -151,6 +204,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                     width: 24.0,
                     child: Checkbox(
                       value: value,
+                      // size: const Size(10, 10), 
                       activeColor: const Color.fromARGB(255, 0, 105, 0),
                       checkColor: const Color.fromARGB(255, 0, 0, 0),
                       visualDensity: VisualDensity.compact,
