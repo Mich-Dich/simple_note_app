@@ -354,6 +354,28 @@ class NoteDetailScreen extends StatelessWidget {
             return Image.file(File(uri.path));
           },
           styleSheet: customStyle,
+          checkboxBuilder: (bool value) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 0.0), // tweak this as needed
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  height: 24.0,
+                  width: 24.0,
+                  child: Checkbox(
+                    value: value,
+                    visualDensity: VisualDensity.compact, // keeps it tight
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    onChanged: (bool? newValue) {
+                      if (newValue != null) {
+                        // toggleCheckbox(newValue);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            );
+          }
         ),
       ),
     );
