@@ -106,7 +106,7 @@ class _NoteListScreenState extends State<NoteListScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Cancel deletion
+                Navigator.of(context).pop();
               },
               child: Text('Cancel'),
             ),
@@ -116,7 +116,7 @@ class _NoteListScreenState extends State<NoteListScreen> {
                   notes.removeAt(index);
                   _saveNotes();
                 });
-                Navigator.of(context).pop(); // Dismiss dialog
+                Navigator.of(context).pop();
               },
               child: Text('Delete'),
             ),
@@ -194,16 +194,13 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     super.dispose();
   }
 
-  // Function to pick an image and insert a markdown image link
+  // pick an image and insert a markdown image link
   Future<void> _insertImage() async {
     final pickedFile =
         await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       final imagePath = pickedFile.path;
-      // Markdown image syntax. The newlines ensure it appears on its own line.
       final markdownImage = "\n![]($imagePath)\n";
-      
-      // Insert at the current cursor position
       final text = _contentController.text;
       final selection = _contentController.selection;
       final newText = text.replaceRange(
@@ -288,6 +285,17 @@ class NoteDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final MarkdownStyleSheet baseStyle = MarkdownStyleSheet.fromTheme(Theme.of(context));
+    final MarkdownStyleSheet customStyle = baseStyle.copyWith(
+      h1: baseStyle.h1?.copyWith(color: Colors.green),
+      h2: baseStyle.h2?.copyWith(color: Colors.green),
+      h3: baseStyle.h3?.copyWith(color: Colors.green),
+      h4: baseStyle.h4?.copyWith(color: Colors.green),
+      h5: baseStyle.h5?.copyWith(color: Colors.green),
+      h6: baseStyle.h6?.copyWith(color: Colors.green),
+      p: const TextStyle(fontSize: 16), // Keep existing paragraph style
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: Text(note['title']!),
@@ -310,9 +318,7 @@ class NoteDetailScreen extends StatelessWidget {
           imageBuilder: (uri, title, alt) {
             return Image.file(File(uri.path));
           },
-          styleSheet: MarkdownStyleSheet(
-            p: TextStyle(fontSize: 16),
-          ),
+          styleSheet: customStyle,
         ),
       ),
     );
