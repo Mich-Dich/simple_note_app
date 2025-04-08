@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 
 void main() {
@@ -214,12 +215,30 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     }
   }
 
+  void _insertTodoList() {
+    final todoTemplate = "\n- [ ] New Task\n";
+    final text = _contentController.text;
+    final selection = _contentController.selection;
+    final newText = text.replaceRange(
+      selection.start, selection.end, todoTemplate);
+    
+    setState(() {
+      _contentController.text = newText;
+      _contentController.selection = TextSelection.collapsed(
+          offset: selection.start + todoTemplate.length);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.note == null ? 'New Note' : 'Edit Note'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.check_box),
+            onPressed: _insertTodoList,
+          ),
           IconButton(
             icon: Icon(Icons.image),
             onPressed: _insertImage,
@@ -287,19 +306,35 @@ class NoteDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final MarkdownStyleSheet baseStyle = MarkdownStyleSheet.fromTheme(Theme.of(context));
     final MarkdownStyleSheet customStyle = baseStyle.copyWith(
-      h1: baseStyle.h1?.copyWith(color: Colors.green),
-      h2: baseStyle.h2?.copyWith(color: Colors.green),
-      h3: baseStyle.h3?.copyWith(color: Colors.green),
-      h4: baseStyle.h4?.copyWith(color: Colors.green),
-      h5: baseStyle.h5?.copyWith(color: Colors.green),
-      h6: baseStyle.h6?.copyWith(color: Colors.green),
-      p: const TextStyle(fontSize: 16), // Keep existing paragraph style
+      h1: baseStyle.h1?.copyWith(color: const Color.fromARGB(255, 0, 255, 0)),
+      h2: baseStyle.h2?.copyWith(color: const Color.fromARGB(255, 0, 170, 0)),
+      h3: baseStyle.h3?.copyWith(color: const Color.fromARGB(255, 0, 150, 0)),
+      h4: baseStyle.h4?.copyWith(color: const Color.fromARGB(255, 0, 110, 0)),
+      h5: baseStyle.h5?.copyWith(color: const Color.fromARGB(255, 0, 100, 0)),
+      h6: baseStyle.h6?.copyWith(color: const Color.fromARGB(255, 0, 90, 0)),
+      a: TextStyle(color: const Color.fromARGB(255, 0, 97, 0)),
+      p: const TextStyle(fontSize: 16),
+      blockquoteDecoration: BoxDecoration(
+        color: const Color.fromARGB(255, 0, 45, 0),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color.fromARGB(255, 0, 100, 0)),
+      ),
     );
 
     return Scaffold(
       appBar: AppBar(
         title: Text(note['title']!),
         actions: [
+          IconButton(
+            icon: Icon(Icons.copy),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: note['content']!)).then((_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Note copied to clipboard')),
+                );
+              });
+            },
+          ),
           IconButton(
             icon: Icon(Icons.edit),
             onPressed: onEdit,
